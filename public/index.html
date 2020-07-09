@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+        type="text/css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <style>
+        .transparent-input {
+            border: none;
+            background: none;
+            outline: none;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        #qrcode img {
+            margin-left: 40%;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            #qrcode img {
+                margin-left: 0px;
+            }
+        }
+    </style>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">Live Song</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Save song</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container" id="app">
+        <input type="text" class="text-center my-4 transparent-input w-100" style="font-size:20pt;" v-model="song.title"
+            @keyup="broadcast">
+        <ul class="nav nav-pills nav-fill">
+            <li class="nav-item">
+                <a class="nav-link" href="#" @click="flipTo('share')"><i class="fa fa-share-alt fa-lg"
+                        aria-hidden="true"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" @click="flipTo('lyrics')"><i class="fa fa-pencil fa-lg"
+                        aria-hidden="true"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" @click="flipTo('chords')"><i class="fa fa-music fa-lg"
+                        aria-hidden="true"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" @click="flipTo('sequencer')"><i class="fa fa-th-large fa-lg"
+                        aria-hidden="true"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" @click="flipTo('playlive')"><i class="fa fa-play fa-lg"
+                        aria-hidden="true"></i></a>
+            </li>
+        </ul>
+        <div class="page">
+            <!-- SHARE SCREEN -->
+            <div class="container pt-5 text-center" v-show="page == 'share'">
+                <div id="qrcode" class="ml-auto"></div>
+            </div>
+            <!-- LYRICS EDITOR -->
+            <div class="container pt-5 text-center" v-show="page == 'lyrics'">
+                <!-- Add Section Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle right" type="button" id="dropdownMenuButton"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Add Section
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                        <a class="dropdown-item" @click="addSection('Verse')">Verse</a>
+                        <a class="dropdown-item" @click="addSection('PreChorus')">PreChorus</a>
+                        <a class="dropdown-item" @click="addSection('Chorus')">Chorus</a>
+                        <a class="dropdown-item" @click="addSection('Bridge')">Bridge</a>
+                    </div>
+                </div>
+                <div class="section py-3" v-for="section in song.sections">
+                    <h3>{{ section.type }}</h3>
+                    <textarea class="form-control" cols="30" rows="10" v-model="section.text"
+                        @keyup="broadcast"></textarea>
+                </div>
+            </div>
+            <!-- CHORDS EDITOR -->
+            <div class="container pt-5 text-center" v-show="page == 'chords'">
+                <div class="section py-3" v-for="section in song.sections">
+                    <h3>{{ section.type }}</h3>
+                    <input type="text" class="form-control" v-model="section.chords" @keyup="broadcast">
+                </div>
+            </div>
+            <!-- SEQUENCER -->
+            <div class="container pt-5 text-center" v-show="page == 'sequencer'">
+                <button class="btn btn-primary float-left" @click="resetSequence()">Reset</button>
+                <!-- Add Section Dropdown -->
+                <div class="dropdown float-right">
+                    <button class="btn btn-primary dropdown-toggle right" type="button" id="dropdownMenuButton"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Add Section
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                        <a class="dropdown-item" @click="addToSequence(index)"
+                            v-for="(section, index) in song.sections"> {{ section.type }}</a>
+                    </div>
+                </div>
+                <div class="sequence pt-5">
+                    <h3 v-for="section in song.sequence"> {{ section.type }} </h3>
+                </div>
+            </div>
+            <!-- PLAY LIVE -->
+            <div class="container pt-5 text-center" v-show="page == 'playlive'">
+                <div class="slides-display" @click="nextSlide()">
+                    <h2> {{ currentSlide().type }} </h2>
+                    <h3> {{ currentSlide().chords }} </h3>
+                    <p v-html="currentSlide().text"></p>
+                </div>
+                <!-- Slides Actions -->
+                <ul class="nav nav-pills nav-fill fixed-bottom">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="resetSlides('lyrics')"><i class="fa fa-refresh fa-lg"
+                                aria-hidden="true"></i></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" @click="nextSlide()"><i class="fa fa-forward fa-lg"
+                                aria-hidden="true"></i></a>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"
+        integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"
+        integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script src="./qr.js"></script>
+    <script>
+        const socket = io();
+        var qrCode = {};
+
+        var app = new Vue({
+            el: '#app',
+            data: {
+                page: 'share',
+                song: {
+                    title: 'My song',
+                    sections: [],
+                    chords: '',
+                    sequence: [],
+                    slidesPosition: 0
+                },
+                guid: '',
+                serverIP: ''
+            },
+            methods: {
+                flipTo: function (page) {
+                    this.page = page;
+                },
+                addSection: function (type) {
+                    var newType = type,
+                        n = 2;
+                    while (this.song.sections.filter(function (section) {
+                            return section.type == newType;
+                        }).length > 0) {
+                        newType = type + ' ' + n++;
+                    }
+                    this.song.sections.push({
+                        type: newType,
+                        text: ''
+                    });
+                    this.broadcast();
+                },
+                // sequencer
+                addToSequence: function (index) {
+                    this.song.sequence.push(this.song.sections[index]);
+                    this.broadcast();
+                },
+                resetSequence: function () {
+                    this.song.sequence = [];
+                    this.broadcast();
+                },
+                // slides player
+                resetSlides: function () {
+                    this.song.slidesPosition = 0;
+                    this.broadcast();
+                },
+                currentSlide: function () {
+                    if (this.song.sequence.length) {
+                        return {
+                            type: this.song.sequence[this.song.slidesPosition].type,
+                            chords: this.song.sequence[this.song.slidesPosition].chords,
+                            text: this.song.sequence[this.song.slidesPosition].text.replace(
+                                /(?:\r\n|\r|\n)/g, '<br>'),
+                        };
+                    } else {
+                        return {
+                            type: '',
+                            chords: '',
+                            text: ''
+                        };
+                    }
+                },
+                nextSlide: function () {
+                    if (this.song.slidesPosition >= this.song.sequence.length) {
+                        this.resetSlides();
+                    } else {
+                        this.song.slidesPosition++;
+                    }
+                    this.broadcast();
+                },
+                // REAL TIME
+                hostSession: function () {
+                    this.guid = generateId(64);
+                    socket.emit('host', id);
+                },
+                broadcast: function () {
+                    socket.emit('songUpdate', this.song);
+                }
+            },
+            mounted: function () {
+                var app = this;
+
+                var qrCode = new QRCode(document.getElementById("qrcode"), '');
+
+                // on websocket connection
+                socket.on('connect', () => {
+
+                    // log connection
+                    console.log('connected to websockets', socket.id);
+
+
+                    // set guid
+                    app.guid = socket.id;
+
+                    // set ip on signal
+                    socket.on('ip', function (ip) {
+                        app.serverIP = ip;
+                        qrCode.makeCode('http://' + ip + ':8080/?join=' + app.guid);
+                    });
+
+                    // join session
+                    if (location.href.includes('?join=')) {
+                        var id = location.href.split('?join=')[1];
+                        if (id.includes('&')) {
+                            id = id.split('&')[0];
+                        }
+                        socket.emit('join', id);
+                        socket.emit('loadSong', true);
+                    } else {
+                        socket.on('loadSong', function () {
+                            app.broadcast();
+                        });
+                    }
+
+                    // respond to up updates
+                    socket.on('songUpdate', function (song) {
+                        app.song = song;
+                    });
+
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
