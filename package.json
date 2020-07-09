@@ -1,5 +1,5 @@
 {
-  "name": "lyricist-live",
+  "name": "unison-live",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
@@ -7,7 +7,7 @@
     "start": "node app.js"
   },
   "keywords": [],
-  "author": "Seth Vandebrook",
+  "author": "Seth Vandebrooke",
   "license": "MIT",
   "dependencies": {
     "express": "^4.17.1",
